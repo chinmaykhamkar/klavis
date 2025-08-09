@@ -74,7 +74,6 @@ async def twilio_make_call(
             'sid': call.sid,
             'status': call.status,
             'direction': call.direction,
-            'from_': call.from_,
             'to': call.to,
             'duration': call.duration,
             'price': call.price,
@@ -141,8 +140,7 @@ async def twilio_get_calls(
             call_list.append({
                 'sid': call.sid,
                 'status': call.status,
-                'direction': call.direction,
-                'from_': call.from_,
+                'direction': call.direction, # Handle reserved keyword
                 'to': call.to,
                 'duration': call.duration,
                 'price': call.price,
@@ -188,7 +186,6 @@ async def twilio_get_call_by_sid(call_sid: str) -> dict:
             'sid': call.sid,
             'status': call.status,
             'direction': call.direction,
-            'from_': call.from_,
             'to': call.to,
             'duration': call.duration,
             'price': call.price,

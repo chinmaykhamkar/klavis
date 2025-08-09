@@ -4,39 +4,39 @@ A comprehensive Model Context Protocol (MCP) server implementation that provides
 
 ## Features
 
-- **=� SMS & MMS Messaging**: Send text messages and multimedia content
-- **=� Voice Calls**: Initiate calls with TwiML control and call management  
-- **=" Phone Number Management**: Search, purchase, configure, and release phone numbers
-- **=� Account Monitoring**: Check balances, usage records, and account information
-- **= Dual Transport Support**: SSE and Streamable HTTP endpoints
-- **= Secure Authentication**: Context-aware token management with environment fallback
-- **=� Detailed Logging**: Configurable logging with rich operational context
-- **� Error Handling**: Comprehensive error handling with actionable error messages
+- **SMS & MMS Messaging**: Send text messages and multimedia content
+- **Voice Calls**: Initiate calls with TwiML control and call management  
+- **Phone Number Management**: Search, purchase, configure, and release phone numbers
+- **Account Monitoring**: Check balances, usage records, and account information
+- **Dual Transport Support**: SSE and Streamable HTTP endpoints
+- **Secure Authentication**: Context-aware token management with environment fallback
+- **Detailed Logging**: Configurable logging with rich operational context
+- **Error Handling**: Comprehensive error handling with actionable error messages
 
 ## Tools Overview
 
 The server provides 15 atomic tools organized into four main categories:
 
-### =� Messaging Operations
+### Messaging Operations
 - `twilio_send_sms`: Send SMS messages with delivery tracking
 - `twilio_send_mms`: Send multimedia messages with up to 10 attachments
 - `twilio_get_messages`: Retrieve message history with flexible filtering
 - `twilio_get_message_by_sid`: Get detailed information about specific messages
 
-### =� Voice Operations  
+### Voice Operations  
 - `twilio_make_call`: Initiate phone calls with TwiML instructions
 - `twilio_get_calls`: Retrieve call history with status filtering
 - `twilio_get_call_by_sid`: Get detailed call information including duration and costs
 - `twilio_get_recordings`: Access call recordings for analysis
 
-### =" Phone Number Management
+### Phone Number Management
 - `twilio_search_available_numbers`: Find available numbers by area code or pattern
 - `twilio_purchase_phone_number`: Purchase numbers with webhook configuration
 - `twilio_list_phone_numbers`: View all owned phone numbers and their settings
 - `twilio_update_phone_number`: Modify number configurations and webhooks
 - `twilio_release_phone_number`: Release numbers to stop billing
 
-### =� Account & Usage Monitoring
+### Account & Usage Monitoring
 - `twilio_get_account_info`: Retrieve account details and status
 - `twilio_get_balance`: Check current account balance
 - `twilio_get_usage_records`: Generate detailed usage reports by category and time period
@@ -412,5 +412,3 @@ This project is licensed under the MIT License - see the [LICENSE](../../LICENSE
 - **Issues**: [Report bugs or request features](https://github.com/klavis-ai/klavis/issues)
 
 ---
-
-Built with d for the Klavis AI ecosystem. This server provides a comprehensive bridge between AI agents and Twilio's powerful communication platform, enabling rich conversational experiences and automated communication workflows.

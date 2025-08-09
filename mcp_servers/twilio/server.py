@@ -543,36 +543,132 @@ def main(
             yield
 
     @contextlib.asynccontextmanager  
-    async def create_http_app_context() -> AsyncIterator[None]:
+    async def create_http_app_context(app) -> AsyncIterator[None]:
         """Context manager for the HTTP streaming server application."""
         yield
 
-    async def create_streamable_http_app(scope: Scope, receive: Receive, send: Send) -> None:
-        """Create a streamable HTTP application for the MCP server."""
-        if scope["type"] != "http":
-            await send({
-                "type": "http.response.start",
-                "status": 405,
-                "headers": [[b"content-type", b"text/plain"]],
+    async def http_handler(request):
+        """Handle HTTP requests for MCP server."""
+        from starlette.responses import JSONResponse
+        import json
+        
+        # Simple health check for GET requests
+        if request.method == "GET":
+            return JSONResponse({
+                "server": "twilio-mcp-server", 
+                "status": "running",
+                "endpoints": {
+                    "sse": "/sse",
+                    "http": "/"
+                }
             })
-            await send({
-                "type": "http.response.body",
-                "body": b"Method not allowed",
-            })
-            return
-
-        async with StreamableHTTPSessionManager() as session_manager:
-            # Handle request with proper auth token context
-            auth_header = None
-            for name, value in scope.get("headers", []):
-                if name == b"authorization":
-                    auth_header = value.decode("utf-8").replace("Bearer ", "")
-                    auth_token_context.set(auth_header)
-                    break
-            
-            await session_manager.handle_request(
-                scope, receive, send, app, json_response
-            )
+        
+        # Handle POST requests (MCP tool calls)
+        if request.method == "POST":
+            try:
+                body = await request.body()
+                if not body:
+                    return JSONResponse({"error": "Empty request body"}, status_code=400)
+                
+                # Parse JSON request
+                try:
+                    data = json.loads(body)
+                except json.JSONDecodeError:
+                    return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+                
+                # Extract tool call information
+                method = data.get("method")
+                params = data.get("params", {})
+                
+                if method == "tools/call":
+                    tool_name = params.get("name")
+                    arguments = params.get("arguments", {})
+                    
+                    # Set auth token if provided
+                    auth_token = arguments.pop("auth_token", None)
+                    if auth_token:
+                        auth_token_context.set(auth_token)
+                    
+                    # Call the appropriate tool
+                    logger.info(f"Calling tool: {tool_name} with arguments: {arguments}")
+                    
+                    try:
+                        # Route to appropriate tool function (same logic as in call_tool)
+                        # Messaging tools
+                        if tool_name == "twilio_send_sms":
+                            from tools import twilio_send_sms
+                            result = await twilio_send_sms(**arguments)
+                        elif tool_name == "twilio_send_mms":
+                            from tools import twilio_send_mms
+                            result = await twilio_send_mms(**arguments)
+                        elif tool_name == "twilio_get_messages":
+                            from tools import twilio_get_messages
+                            result = await twilio_get_messages(**arguments)
+                        elif tool_name == "twilio_get_message_by_sid":
+                            from tools import twilio_get_message_by_sid
+                            result = await twilio_get_message_by_sid(**arguments)
+                        # Voice tools
+                        elif tool_name == "twilio_make_call":
+                            from tools import twilio_make_call
+                            result = await twilio_make_call(**arguments)
+                        elif tool_name == "twilio_get_calls":
+                            from tools import twilio_get_calls
+                            result = await twilio_get_calls(**arguments)
+                        elif tool_name == "twilio_get_call_by_sid":
+                            from tools import twilio_get_call_by_sid
+                            result = await twilio_get_call_by_sid(**arguments)
+                        elif tool_name == "twilio_get_recordings":
+                            from tools import twilio_get_recordings
+                            result = await twilio_get_recordings(**arguments)
+                        # Phone number tools
+                        elif tool_name == "twilio_search_available_numbers":
+                            from tools import twilio_search_available_numbers
+                            result = await twilio_search_available_numbers(**arguments)
+                        elif tool_name == "twilio_purchase_phone_number":
+                            from tools import twilio_purchase_phone_number
+                            result = await twilio_purchase_phone_number(**arguments)
+                        elif tool_name == "twilio_list_phone_numbers":
+                            from tools import twilio_list_phone_numbers
+                            result = await twilio_list_phone_numbers(**arguments)
+                        elif tool_name == "twilio_update_phone_number":
+                            from tools import twilio_update_phone_number
+                            result = await twilio_update_phone_number(**arguments)
+                        elif tool_name == "twilio_release_phone_number":
+                            from tools import twilio_release_phone_number
+                            result = await twilio_release_phone_number(**arguments)
+                        # Account tools
+                        elif tool_name == "twilio_get_account_info":
+                            from tools import twilio_get_account_info
+                            result = await twilio_get_account_info(**arguments)
+                        elif tool_name == "twilio_get_balance":
+                            from tools import twilio_get_balance
+                            result = await twilio_get_balance(**arguments)
+                        elif tool_name == "twilio_get_usage_records":
+                            from tools import twilio_get_usage_records
+                            result = await twilio_get_usage_records(**arguments)
+                        else:
+                            return JSONResponse({"error": f"Unknown tool: {tool_name}"}, status_code=400)
+                        
+                        return JSONResponse({"result": result})
+                        
+                    except Exception as e:
+                        logger.error(f"Error calling tool {tool_name}: {e}")
+                        return JSONResponse({"error": str(e)}, status_code=500)
+                
+                elif method == "tools/list":
+                    # Return list of available tools
+                    tools = await app.handlers.get(types.ListToolsRequest)()
+                    tool_list = [{"name": tool.name, "description": tool.description} for tool in tools]
+                    return JSONResponse({"tools": tool_list})
+                
+                else:
+                    return JSONResponse({"error": f"Unknown method: {method}"}, status_code=400)
+                    
+            except Exception as e:
+                logger.error(f"Error handling request: {e}")
+                return JSONResponse({"error": str(e)}, status_code=500)
+        
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
 
     # Create SSE transport for real-time streaming
     sse_transport = SseServerTransport("/sse")
@@ -580,7 +676,7 @@ def main(
     # Mount both endpoints
     routes = [
         Mount("/sse", sse_transport, name="sse"),
-        Route("/{path:path}", create_streamable_http_app, methods=["GET", "POST"]),
+        Route("/{path:path}", http_handler, methods=["GET", "POST"]),
     ]
 
     starlette_app = Starlette(

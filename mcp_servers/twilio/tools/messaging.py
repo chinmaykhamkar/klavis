@@ -53,8 +53,7 @@ async def twilio_send_sms(
         return {
             'sid': message.sid,
             'status': message.status,
-            'direction': message.direction,
-            'from_': message.from_,
+            'direction': message.direction, # Handle reserved keyword
             'to': message.to,
             'body': message.body,
             'num_segments': message.num_segments,
@@ -125,8 +124,7 @@ async def twilio_send_mms(
         return {
             'sid': message.sid,
             'status': message.status,
-            'direction': message.direction,
-            'from_': message.from_,
+            'direction': message.direction,  # Handle reserved keyword
             'to': message.to,
             'body': message.body,
             'num_media': message.num_media,
@@ -187,8 +185,7 @@ async def twilio_get_messages(
             message_list.append({
                 'sid': message.sid,
                 'status': message.status,
-                'direction': message.direction,
-                'from_': message.from_,
+                'direction': message.direction, # Handle reserved keyword
                 'to': message.to,
                 'body': message.body,
                 'num_segments': message.num_segments,
@@ -232,8 +229,7 @@ async def twilio_get_message_by_sid(message_sid: str) -> dict:
         return {
             'sid': message.sid,
             'status': message.status,
-            'direction': message.direction,
-            'from_': message.from_,
+            'direction': message.direction, # Handle reserved keyword
             'to': message.to,
             'body': message.body,
             'num_segments': message.num_segments,
