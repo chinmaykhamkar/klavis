@@ -4,12 +4,13 @@ A comprehensive Model Context Protocol (MCP) server implementation that provides
 
 ## Features
 
+- **15 Comprehensive Tools**: Complete coverage of Twilio's communication APIs
 - **SMS & MMS Messaging**: Send text messages and multimedia content
 - **Voice Calls**: Initiate calls with TwiML control and call management  
 - **Phone Number Management**: Search, purchase, configure, and release phone numbers
 - **Account Monitoring**: Check balances, usage records, and account information
-- **Dual Transport Support**: SSE and Streamable HTTP endpoints
-- **Secure Authentication**: Context-aware token management with environment fallback
+- **Dual Mode Architecture**: Supports both Claude Desktop (stdio) and HTTP server modes
+- **Secure Authentication**: Context-aware token management with environment variables
 - **Detailed Logging**: Configurable logging with rich operational context
 - **Error Handling**: Comprehensive error handling with actionable error messages
 
@@ -58,48 +59,88 @@ The server provides 15 atomic tools organized into four main categories:
 3. Copy your **Account SID** and **Auth Token**
 4. (Optional) Purchase a phone number from **Phone Numbers > Manage > Buy a number**
 
-#### Step 2: Configure Environment Variables
+#### Step 2: Install Dependencies
+```bash
+# Navigate to the Twilio MCP server directory
+cd mcp_servers/twilio
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+#### Step 3: Configure Environment Variables
 1. **Copy the example environment file**:
    ```bash
    cp .env.example .env
    ```
 
-2. **Edit the `.env` file** with your actual Twilio credentials:
-
-### Local Installation
-
-1. **Install dependencies**:
+2. **Edit the `.env` file** with your Twilio credentials:
    ```bash
-   pip install -r requirements.txt
+   # Open .env in your preferred editor
+   nano .env  # or vim .env, or code .env
    ```
 
-2. **Verify your setup**:
-   ```bash
-   # Check that your .env file exists and has the right variables
-   cat .env
+   Add your credentials:
+   ```
+   TWILIO_ACCOUNT_SID=your_account_sid_here
+   TWILIO_AUTH_TOKEN=your_auth_token_here
+   TWILIO_MCP_SERVER_PORT=5000
    ```
 
-3. **Run the server**:
-   ```bash
-   python server.py
-   ```
+## Running the Server
 
-4. **Verify the server is running**:
-   - You should see logs indicating the server started successfully
-   - The server will be available at `http://localhost:5000`
+The Twilio MCP server supports two modes:
 
-3. **Custom configuration**:
-   ```bash
-   # Custom port and logging level
-   python server.py --port 8080 --log-level DEBUG
-   
-   # Enable JSON responses instead of SSE streams  
-   python server.py --json-response
-   ```
+### Mode 1: Claude Desktop Integration (stdio)
+For use with Claude Desktop or other MCP clients that use stdio transport:
 
-### Docker Installation (Recommended)
+```bash
+python server.py --stdio
+```
 
-1. **Set up environment variables** (same as local setup):
+**Claude Desktop Configuration:**
+Add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "twilio": {
+      "command": "/path/to/your/venv/bin/python",
+      "args": ["/path/to/mcp_servers/twilio/server.py", "--stdio"],
+      "env": {
+        "TWILIO_ACCOUNT_SID": "your_account_sid_here",
+        "TWILIO_AUTH_TOKEN": "your_auth_token_here"
+      }
+    }
+  }
+}
+```
+
+### Mode 2: HTTP Server (default)
+For API testing, web integration, or other MCP clients that use HTTP transport:
+
+```bash
+python server.py
+# Server runs on http://localhost:5000
+```
+
+**Custom Configuration Options:**
+```bash
+# Custom port and logging level
+python server.py --port 8080 --log-level DEBUG
+
+# Enable JSON responses instead of SSE streams  
+python server.py --json-response
+```
+
+### Docker Installation
+
+For containerized deployment:
+
+1. **Set up environment variables** (follow Step 3 above):
    ```bash
    cp .env.example .env
    # Edit .env with your Twilio credentials
@@ -107,30 +148,55 @@ The server provides 15 atomic tools organized into four main categories:
 
 2. **Build the Docker image**:
    ```bash
-   docker build -t klavis-twilio .
+   docker build -t twilio-mcp-server .
    ```
 
-3. **Run with environment file** (easiest method):
+3. **Run in HTTP mode** (default):
    ```bash
-   docker run -p 5000:5000 --env-file .env klavis-twilio
+   docker run -p 5000:5000 --env-file .env twilio-mcp-server
    ```
 
-4. **Alternative: Run with individual environment variables**:
+4. **Run in stdio mode** (for MCP client integration):
    ```bash
-   docker run -p 5000:5000 \
-     -e TWILIO_ACCOUNT_SID=your_account_sid \
-     -e TWILIO_AUTH_TOKEN=your_auth_token \
-     klavis-twilio
+   docker run --env-file .env twilio-mcp-server --stdio
    ```
+
+## Testing Your Setup
+
+### Quick Test Commands
+
+1. **Test HTTP mode** (server running on localhost:5000):
+   ```bash
+   # Health check
+   curl http://localhost:5000/
+   
+   # List available tools
+   curl -X POST http://localhost:5000/ \
+     -H "Content-Type: application/json" \
+     -d '{"method": "tools/list"}'
+   
+   # Test account info (requires credentials in .env)
+   curl -X POST http://localhost:5000/ \
+     -H "Content-Type: application/json" \
+     -d '{"method": "tools/call", "params": {"name": "twilio_get_account_info", "arguments": {}}}'
+   ```
+
+2. **Test Claude Desktop Integration**:
+   - Add the server to your Claude Desktop config
+   - Restart Claude Desktop
+   - Ask Claude: "Can you check my Twilio account balance?"
 
 ## Usage Examples
 
-### Connecting with MCP Clients
+### Available Server Endpoints
 
-The server provides two endpoints for different use cases:
+**HTTP Mode (default):**
+- **Health Check**: `GET http://localhost:5000/`
+- **SSE Streaming**: `GET http://localhost:5000/sse`
+- **StreamableHTTP**: `POST http://localhost:5000/mcp`
 
-- **SSE Endpoint**: `http://localhost:5000/sse` (real-time streaming)
-- **HTTP Endpoint**: `http://localhost:5000/` (request-response)
+**Stdio Mode:**
+- Communicates via standard input/output for MCP client integration
 
 ### Example Tool Calls
 
@@ -141,7 +207,7 @@ The server provides two endpoints for different use cases:
   "arguments": {
     "to": "+1234567890",
     "from_": "+1987654321", 
-    "body": "Hello from Twilio MCP Server! =�"
+    "body": "Hello from Twilio MCP Server!"
   }
 }
 ```
@@ -185,58 +251,6 @@ The server provides two endpoints for different use cases:
 }
 ```
 
-## Configuration & Webhooks
-
-### Setting Up Webhooks
-
-Many Twilio features require webhook URLs for real-time notifications:
-
-- **SMS Status Updates**: Get delivery confirmations
-- **Call Status Updates**: Track call progress and completion
-- **Incoming Messages**: Handle replies and conversations
-- **Incoming Calls**: Control call flow with TwiML
-
-Example webhook configuration when purchasing a number:
-```json
-{
-  "tool": "twilio_purchase_phone_number",
-  "arguments": {
-    "phone_number": "+1234567890",
-    "friendly_name": "Customer Service Line",
-    "voice_url": "https://your-domain.com/voice-webhook",
-    "sms_url": "https://your-domain.com/sms-webhook"
-  }
-}
-```
-
-### TwiML for Voice Calls
-
-TwiML (Twilio Markup Language) controls call behavior. Common examples:
-
-**Simple Message**:
-```xml
-<Response>
-  <Say>Thank you for calling! Your call is important to us.</Say>
-</Response>
-```
-
-**Interactive Menu**:
-```xml
-<Response>
-  <Gather numDigits="1" action="/handle-choice">
-    <Say>Press 1 for Sales, Press 2 for Support</Say>
-  </Gather>
-</Response>
-```
-
-**Record a Message**:
-```xml
-<Response>
-  <Say>Please leave your message after the beep.</Say>
-  <Record maxLength="60" action="/handle-recording"/>
-</Response>
-```
-
 ## Error Handling & Troubleshooting
 
 The server provides detailed error information to help diagnose issues:
@@ -259,10 +273,6 @@ The server provides detailed error information to help diagnose issues:
    - Twilio has rate limits on API calls and messaging
    - Implement exponential backoff for production use
 
-5. **Webhook Delivery**:
-   - Ensure webhook URLs are publicly accessible
-   - Use HTTPS endpoints for production
-   - Verify webhook endpoints return HTTP 200 status
 
 ### Debugging Tips
 
@@ -275,67 +285,7 @@ The server provides detailed error information to help diagnose issues:
    - Use Twilio's REST API Explorer to test credentials
    - Send test messages through the Console first
 
-3. **Webhook Testing**:
-   - Use tools like ngrok for local webhook testing
-   - Check webhook logs in Twilio Console
-
-## API Rate Limits & Best Practices
-
-### Twilio Rate Limits
-- **REST API**: 100 requests per second (default)
-- **SMS Messages**: Varies by account type and phone number
-- **Voice Calls**: Concurrent call limits apply
-
-### Best Practices
-
-1. **Authentication**:
-   - Store credentials securely using environment variables
-   - Rotate Auth Tokens periodically
-   - Use subaccounts for organization
-
-2. **Phone Number Management**:
-   - Purchase numbers in advance for high-volume use
-   - Configure appropriate webhook URLs
-   - Monitor number usage and costs
-
-3. **Message Delivery**:
-   - Implement status callbacks for delivery confirmation
-   - Handle failed messages gracefully
-   - Respect opt-out requests
-
-4. **Cost Optimization**:
-   - Monitor usage records regularly
-   - Set up usage alerts and triggers
-   - Choose appropriate phone number types for your use case
-
-## Security Considerations
-
-1. **Credential Security**:
-   - Never commit credentials to version control
-   - Use environment variables or secure secret management
-   - Implement proper access controls
-
-2. **Webhook Security**:
-   - Validate webhook signatures from Twilio
-   - Use HTTPS endpoints in production
-   - Implement proper request validation
-
-3. **Data Privacy**:
-   - Handle phone numbers and message content according to regulations
-   - Implement proper data retention policies
-   - Respect user privacy preferences
-
 ## Development & Testing
-
-### Running Tests
-
-```bash
-# Install test dependencies
-pip install -r requirements.txt pytest pytest-asyncio
-
-# Run tests
-pytest tests/ -v
-```
 
 ### Local Development
 
@@ -350,39 +300,58 @@ pytest tests/ -v
    - Use Twilio's test credentials for development
    - Test credentials don't send real messages or make real calls
 
-3. **Webhook Development**:
-   - Use ngrok or similar tools to expose local webhooks
-   - Test webhook flows thoroughly
+## Quick Start
 
-### Quick Start Commands
-
-To get the server running quickly:
-
+### Option 1: Local Installation
 ```bash
-# 1. Navigate to the twilio directory
+# 1. Navigate to the Twilio MCP server directory
 cd mcp_servers/twilio
 
-# 2. Set up your environment
-cp .env.example .env
-# Edit .env with your actual Twilio credentials
-
-# 3. Install and run
+# 2. Create virtual environment and install dependencies
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python server.py --log-level DEBUG
 
-# Server will be available at http://localhost:5000
+# 3. Set up your environment
+cp .env.example .env
+# Edit .env with your Twilio credentials
+
+# 4. Run the server
+python server.py --stdio  # For Claude Desktop
+# OR
+python server.py          # For HTTP API testing
 ```
 
-Or with Docker:
+### Option 2: Docker Installation
 ```bash
 # 1. Set up environment and build
 cp .env.example .env
-# Edit .env with your actual Twilio credentials  
-docker build -t klavis-twilio .
+# Edit .env with your Twilio credentials  
+docker build -t twilio-mcp-server .
 
 # 2. Run the server
-docker run -p 5000:5000 --env-file .env klavis-twilio
+docker run -p 5000:5000 --env-file .env twilio-mcp-server
 ```
+
+### Option 3: Claude Desktop Integration
+1. Follow local installation steps 1-3 above
+2. Add to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "twilio": {
+      "command": "/absolute/path/to/your/venv/bin/python",
+      "args": ["/absolute/path/to/mcp_servers/twilio/server.py", "--stdio"],
+      "env": {
+        "TWILIO_ACCOUNT_SID": "your_account_sid_here",
+        "TWILIO_AUTH_TOKEN": "your_auth_token_here"
+      }
+    }
+  }
+}
+```
+3. Restart Claude Desktop
+4. Ask Claude: "Can you check my Twilio account info?"
 
 ## Contributing
 
