@@ -9,10 +9,11 @@ This MCP server provides tools to interact with Moneybird, including:
 ### Administration (1 tool)
 - **moneybird_list_administrations**: List all administrations the authenticated user has access to (call this first!)
 
-### Contacts (3 tools)
+### Contacts (4 tools)
 - **moneybird_list_contacts**: List all contacts with optional search filtering
 - **moneybird_get_contact**: Get details for a specific contact by ID
-- **moneybird_create_contact**: Create new contacts with company or person information
+- **moneybird_create_contact**: Create new company/organization contacts
+- **moneybird_create_contact_person**: Create individual people within existing company contacts
 
 ### Sales & Invoicing (3 tools)
 - **moneybird_list_sales_invoices**: List all sales invoices with filtering options (state, period, contact, dates)
@@ -82,7 +83,7 @@ docker run -p 5000:5000 moneybird-mcp-server
 The server supports two authentication methods:
 
 ### Method 1: HTTP Header (Recommended for API calls)
-Provide the API token in the `x-auth-token` header:
+Provide the API token in the `x-auth-token` header (via the Klavis platform):
 ```
 x-auth-token: your_moneybird_api_token_here
 ```
@@ -97,246 +98,6 @@ MONEYBIRD_API_TOKEN=your_moneybird_api_token_here
 - Use `.env` for local development/testing
 - Override with headers for production API calls
 
-## API Endpoints
-
-The server provides endpoints for both transport methods:
-
-- `/sse` - Server-Sent Events endpoint for real-time communication
-- `/messages/` - SSE message handling endpoint
-- `/mcp` - StreamableHTTP endpoint for direct API calls
-
-## Tool Usage Examples
-
-### Get Available Administrations (Start Here!)
-```json
-{
-  "name": "moneybird_list_administrations",
-  "arguments": {}
-}
-```
-
-### List All Contacts
-```json
-{
-  "name": "moneybird_list_contacts",
-  "arguments": {
-    "administration_id": "123456789",
-    "query": "john@example.com"
-  }
-}
-```
-
-### Get a Specific Contact
-```json
-{
-  "name": "moneybird_get_contact",
-  "arguments": {
-    "administration_id": "123456789",
-    "contact_id": "987654321"
-  }
-}
-```
-
-### Create a New Contact
-```json
-{
-  "name": "moneybird_create_contact",
-  "arguments": {
-    "administration_id": "123456789",
-    "contact_data": {
-      "contact": {
-        "company_name": "Acme Corp",
-        "email": "info@acme.com",
-        "phone": "+1234567890"
-      }
-    }
-  }
-}
-```
-
-### List Sales Invoices with Filters
-```json
-{
-  "name": "moneybird_list_sales_invoices",
-  "arguments": {
-    "administration_id": "123456789",
-    "state": "open",
-    "period": "this_month"
-  }
-}
-```
-
-### Get a Specific Sales Invoice
-```json
-{
-  "name": "moneybird_get_sales_invoice",
-  "arguments": {
-    "administration_id": "123456789",
-    "invoice_id": "456789123"
-  }
-}
-```
-
-### Create a Sales Invoice
-```json
-{
-  "name": "moneybird_create_sales_invoice",
-  "arguments": {
-    "administration_id": "123456789",
-    "invoice_data": {
-      "sales_invoice": {
-        "contact_id": "987654321",
-        "invoice_date": "2024-01-15",
-        "due_date": "2024-02-15",
-        "reference": "INV-001",
-        "details_attributes": [
-          {
-            "description": "Consulting services",
-            "price": "100.00",
-            "amount": "10"
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-### List Financial Accounts
-```json
-{
-  "name": "moneybird_list_financial_accounts",
-  "arguments": {
-    "administration_id": "123456789"
-  }
-}
-```
-
-### List Products
-```json
-{
-  "name": "moneybird_list_products",
-  "arguments": {
-    "administration_id": "123456789",
-    "query": "consulting"
-  }
-}
-```
-
-### List Projects
-```json
-{
-  "name": "moneybird_list_projects",
-  "arguments": {
-    "administration_id": "123456789",
-    "state": "active"
-  }
-}
-```
-
-### List Time Entries
-```json
-{
-  "name": "moneybird_list_time_entries",
-  "arguments": {
-    "administration_id": "123456789",
-    "period": "this_week",
-    "project_id": "555666777"
-  }
-}
-```
-
-## Testing the Server
-
-### Local Testing with curl
-
-1. **Start the server:**
-```bash
-python server.py
-```
-
-2. **Test the SSE endpoint:**
-```bash
-curl -H "x-auth-token: YOUR_MONEYBIRD_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     http://localhost:5000/sse
-```
-
-3. **Test a tool call via StreamableHTTP:**
-```bash
-curl -X POST \
-     -H "x-auth-token: YOUR_MONEYBIRD_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "method": "tools/call",
-       "params": {
-         "name": "moneybird_list_contacts",
-         "arguments": {
-           "administration_id": "YOUR_ADMINISTRATION_ID"
-         }
-       }
-     }' \
-     http://localhost:5000/mcp
-```
-
-### Testing with Python
-
-```python
-import httpx
-import json
-
-# Configuration
-API_TOKEN = "your_moneybird_api_token"
-SERVER_URL = "http://localhost:5000"
-
-async def test_moneybird_tools():
-    headers = {
-        "x-auth-token": API_TOKEN,
-        "Content-Type": "application/json"
-    }
-    
-    # First, get available administrations
-    admin_payload = {
-        "method": "tools/call",
-        "params": {
-            "name": "moneybird_list_administrations",
-            "arguments": {}
-        }
-    }
-    
-    async with httpx.AsyncClient() as client:
-        # Get administrations
-        admin_response = await client.post(f"{SERVER_URL}/mcp", 
-                                         headers=headers, 
-                                         json=admin_payload)
-        print("Administrations:", admin_response.json())
-        
-        # Extract first administration ID from response
-        # (adjust based on actual API response structure)
-        admin_data = admin_response.json()
-        if admin_data and len(admin_data) > 0:
-            administration_id = str(admin_data[0]["id"])
-            
-            # Test listing contacts with the administration ID
-            contacts_payload = {
-                "method": "tools/call",
-                "params": {
-                    "name": "moneybird_list_contacts",
-                    "arguments": {
-                        "administration_id": administration_id
-                    }
-                }
-            }
-            
-            contacts_response = await client.post(f"{SERVER_URL}/mcp", 
-                                               headers=headers, 
-                                               json=contacts_payload)
-            print("Contacts response:", contacts_response.json())
-
-# Run the test
-import asyncio
-asyncio.run(test_moneybird_tools())
-```
 
 ## Recommended Workflow
 
@@ -364,11 +125,7 @@ LLM: → Calls moneybird_list_contacts with administration_id: "123"
 ## Getting Your Moneybird Credentials
 
 ### API Token
-1. Log into your Moneybird account
-2. Go to Settings > Account Settings
-3. Navigate to the "API" or "Integrations" section
-4. Generate a new API token
-5. Copy the token for use in the `x-auth-token` header
+1. Follow the instructions on this page [link](https://developer.moneybird.com/authentication) to create your moneybird API token
 
 ### Administration ID
 1. In your Moneybird account, the administration ID is visible in the URL

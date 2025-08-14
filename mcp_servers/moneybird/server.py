@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from tools import (
     auth_token_context,
     moneybird_list_administrations,
-    moneybird_list_contacts, moneybird_get_contact, moneybird_create_contact,
+    moneybird_list_contacts, moneybird_get_contact, moneybird_create_contact, moneybird_create_contact_person,
     moneybird_list_sales_invoices, moneybird_get_sales_invoice, moneybird_create_sales_invoice,
     moneybird_list_financial_accounts, moneybird_list_products,
     moneybird_list_projects, moneybird_list_time_entries
@@ -115,7 +115,7 @@ def main(
             ),
             types.Tool(
                 name="moneybird_create_contact",
-                description="Create a new contact in Moneybird.",
+                description="Create a new company contact in Moneybird (for organizations/companies).",
                 inputSchema={
                     "type": "object",
                     "required": ["administration_id", "contact_data"],
@@ -126,16 +126,51 @@ def main(
                         },
                         "contact_data": {
                             "type": "object",
-                            "description": "Contact information including company_name or first_name/last_name.",
+                            "description": "Contact information for company/organization.",
                             "properties": {
                                 "contact": {
                                     "type": "object",
                                     "properties": {
-                                        "company_name": {"type": "string"},
-                                        "firstname": {"type": "string"},
-                                        "lastname": {"type": "string"},
-                                        "email": {"type": "string"},
+                                        "company_name": {"type": "string", "description": "Company name (required)"},
                                         "phone": {"type": "string"},
+                                        "send_invoices_to_email": {"type": "string"},
+                                        "address1": {"type": "string"},
+                                        "city": {"type": "string"},
+                                        "country": {"type": "string"},
+                                    }
+                                }
+                            }
+                        },
+                    },
+                },
+            ),
+            types.Tool(
+                name="moneybird_create_contact_person",
+                description="Create a new contact person within an existing company contact in Moneybird.",
+                inputSchema={
+                    "type": "object",
+                    "required": ["administration_id", "contact_id", "contact_person_data"],
+                    "properties": {
+                        "administration_id": {
+                            "type": "string",
+                            "description": "The ID of the Moneybird administration.",
+                        },
+                        "contact_id": {
+                            "type": "string",
+                            "description": "The ID of the existing company contact.",
+                        },
+                        "contact_person_data": {
+                            "type": "object",
+                            "description": "Contact person information.",
+                            "properties": {
+                                "contact_person": {
+                                    "type": "object",
+                                    "properties": {
+                                        "firstname": {"type": "string", "description": "First name (required)"},
+                                        "lastname": {"type": "string", "description": "Last name (required)"},
+                                        "phone": {"type": "string"},
+                                        "email": {"type": "string"},
+                                        "department": {"type": "string"},
                                     }
                                 }
                             }
@@ -422,6 +457,35 @@ def main(
             
             try:
                 result = await moneybird_create_contact(administration_id, contact_data)
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(result, indent=2),
+                    )
+                ]
+            except Exception as e:
+                logger.exception(f"Error executing tool {name}: {e}")
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"Error: {str(e)}",
+                    )
+                ]
+        
+        elif name == "moneybird_create_contact_person":
+            administration_id = arguments.get("administration_id")
+            contact_id = arguments.get("contact_id")
+            contact_person_data = arguments.get("contact_person_data")
+            if not administration_id or not contact_id or not contact_person_data:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text="Error: administration_id, contact_id, and contact_person_data parameters are required",
+                    )
+                ]
+            
+            try:
+                result = await moneybird_create_contact_person(administration_id, contact_id, contact_person_data)
                 return [
                     types.TextContent(
                         type="text",
