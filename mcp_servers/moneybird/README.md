@@ -9,11 +9,10 @@ This MCP server provides tools to interact with Moneybird, including:
 ### Administration (1 tool)
 - **moneybird_list_administrations**: List all administrations the authenticated user has access to (call this first!)
 
-### Contacts (4 tools)
+### Contacts (3 tools)
 - **moneybird_list_contacts**: List all contacts with optional search filtering
 - **moneybird_get_contact**: Get details for a specific contact by ID
-- **moneybird_create_contact**: Create new company/organization contacts
-- **moneybird_create_contact_person**: Create individual people within existing company contacts
+- **moneybird_create_contact**: Create new contacts with company or person information
 
 ### Sales & Invoicing (3 tools)
 - **moneybird_list_sales_invoices**: List all sales invoices with filtering options (state, period, contact, dates)
@@ -83,7 +82,7 @@ docker run -p 5000:5000 moneybird-mcp-server
 The server supports two authentication methods:
 
 ### Method 1: HTTP Header (Recommended for API calls)
-Provide the API token in the `x-auth-token` header (via the Klavis platform):
+Provide the API token in the `x-auth-token` header:
 ```
 x-auth-token: your_moneybird_api_token_here
 ```
@@ -98,28 +97,153 @@ MONEYBIRD_API_TOKEN=your_moneybird_api_token_here
 - Use `.env` for local development/testing
 - Override with headers for production API calls
 
+## API Endpoints
 
-## Recommended Workflow
+The server provides endpoints for both transport methods:
 
-1. **Start with Administration Discovery**:
-   ```bash
-   # First call to discover available administrations
-   moneybird_list_administrations
-   ```
+- `/sse` - Server-Sent Events endpoint for real-time communication
+- `/messages/` - SSE message handling endpoint
+- `/mcp` - StreamableHTTP endpoint for direct API calls
 
-2. **Select Administration**: From the response, note the `id` of the administration you want to work with
+## Tool Usage Examples
 
-3. **Use Other Tools**: Pass the selected `administration_id` to all subsequent tool calls
-
-**Example LLM Conversation Flow**:
+### Get Available Administrations (Start Here!)
+```json
+{
+  "name": "moneybird_list_administrations",
+  "arguments": {}
+}
 ```
-User: "Show me my Moneybird contacts"
-LLM: "Let me first get your available administrations..."
-     → Calls moneybird_list_administrations
-LLM: "I found these administrations: [Company A (id: 123), Company B (id: 456)]. 
-     Which one would you like to work with?"
-User: "Company A"
-LLM: → Calls moneybird_list_contacts with administration_id: "123"
+
+### List All Contacts
+```json
+{
+  "name": "moneybird_list_contacts",
+  "arguments": {
+    "administration_id": "123456789",
+    "query": "john@example.com"
+  }
+}
+```
+
+### Get a Specific Contact
+```json
+{
+  "name": "moneybird_get_contact",
+  "arguments": {
+    "administration_id": "123456789",
+    "contact_id": "987654321"
+  }
+}
+```
+
+### Create a New Contact
+```json
+{
+  "name": "moneybird_create_contact",
+  "arguments": {
+    "administration_id": "123456789",
+    "contact_data": {
+      "contact": {
+        "company_name": "Acme Corp",
+        "email": "info@acme.com",
+        "phone": "+1234567890"
+      }
+    }
+  }
+}
+```
+
+### List Sales Invoices with Filters
+```json
+{
+  "name": "moneybird_list_sales_invoices",
+  "arguments": {
+    "administration_id": "123456789",
+    "state": "open",
+    "period": "this_month"
+  }
+}
+```
+
+### Get a Specific Sales Invoice
+```json
+{
+  "name": "moneybird_get_sales_invoice",
+  "arguments": {
+    "administration_id": "123456789",
+    "invoice_id": "456789123"
+  }
+}
+```
+
+### Create a Sales Invoice
+```json
+{
+  "name": "moneybird_create_sales_invoice",
+  "arguments": {
+    "administration_id": "123456789",
+    "invoice_data": {
+      "sales_invoice": {
+        "contact_id": "987654321",
+        "invoice_date": "2024-01-15",
+        "due_date": "2024-02-15",
+        "reference": "INV-001",
+        "details_attributes": [
+          {
+            "description": "Consulting services",
+            "price": "100.00",
+            "amount": "10"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### List Financial Accounts
+```json
+{
+  "name": "moneybird_list_financial_accounts",
+  "arguments": {
+    "administration_id": "123456789"
+  }
+}
+```
+
+### List Products
+```json
+{
+  "name": "moneybird_list_products",
+  "arguments": {
+    "administration_id": "123456789",
+    "query": "consulting"
+  }
+}
+```
+
+### List Projects
+```json
+{
+  "name": "moneybird_list_projects",
+  "arguments": {
+    "administration_id": "123456789",
+    "state": "active"
+  }
+}
+```
+
+### List Time Entries
+```json
+{
+  "name": "moneybird_list_time_entries",
+  "arguments": {
+    "administration_id": "123456789",
+    "period": "this_week",
+    "project_id": "555666777"
+  }
+}
 ```
 
 ## Getting Your Moneybird Credentials
