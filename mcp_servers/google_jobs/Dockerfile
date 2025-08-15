@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -8,15 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy only the requirements first to leverage Docker cache
-COPY /mcp_servers/tavily/requirements.txt .
+COPY mcp_servers/google_jobs/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the server code
-COPY /mcp_servers/tavily/server.py .
-COPY /mcp_servers/tavily/tools/ ./tools/
+# Copy server code and tools
+COPY mcp_servers/google_jobs/server.py .
+COPY mcp_servers/google_jobs/tools/ ./tools/
 
-# Expose the port the server runs on
+# Expose port (change if your server uses another)
 EXPOSE 5000
 
-# Command to run the MCP server
+# Run the server
 CMD ["python", "server.py"]
