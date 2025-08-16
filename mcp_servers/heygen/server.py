@@ -74,10 +74,17 @@ def main(
             # Assets - Voices
             types.Tool(
                 name="heygen_get_voices",
-                description="Retrieve a list of available voices from the HeyGen API (limited to first 100 voices).",
+                description="Retrieve a list of available voices from the HeyGen API.",
                 inputSchema={
                     "type": "object",
-                    "properties": {},
+                    "properties": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of voices to return (default: 20, max: 100).",
+                            "default": 20,
+                            "maximum": 100,
+                        },
+                    },
                 },
             ),
             types.Tool(
@@ -85,7 +92,13 @@ def main(
                 description="Retrieve a list of available voice locales (languages) from the HeyGen API.",
                 inputSchema={
                     "type": "object",
-                    "properties": {},
+                    "properties": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of voice locales to return (default: 20).",
+                            "default": 20,
+                        },
+                    },
                 },
             ),
             # Assets - Avatars
@@ -116,7 +129,13 @@ def main(
                 description="Retrieve a list of all available avatars from the HeyGen API. This includes your instant avatars and public avatars.",
                 inputSchema={
                     "type": "object",
-                    "properties": {},
+                    "properties": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of avatars to return (default: 20).",
+                            "default": 20,
+                        },
+                    },
                 },
             ),
             # Generation
@@ -239,8 +258,10 @@ def main(
         
         # Assets - Voices
         elif name == "heygen_get_voices":
+            limit = arguments.get("limit", 20)
+            
             try:
-                result = await heygen_get_voices()
+                result = await heygen_get_voices(limit)
                 return [
                     types.TextContent(
                         type="text",
@@ -257,8 +278,10 @@ def main(
                 ]
         
         elif name == "heygen_get_voice_locales":
+            limit = arguments.get("limit", 20)
+            
             try:
-                result = await heygen_get_voice_locales()
+                result = await heygen_get_voice_locales(limit)
                 return [
                     types.TextContent(
                         type="text",
@@ -321,8 +344,10 @@ def main(
                 ]
         
         elif name == "heygen_list_avatars":
+            limit = arguments.get("limit", 20)
+            
             try:
-                result = await heygen_list_avatars()
+                result = await heygen_list_avatars(limit)
                 return [
                     types.TextContent(
                         type="text",
